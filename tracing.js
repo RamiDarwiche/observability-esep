@@ -1,35 +1,29 @@
-const { resourceFromAttributes } = require("@opentelemetry/resources");
-const { ATTR_SERVICE_NAME } = require("@opentelemetry/semantic-conventions");
-const { NodeSDK } = require("@opentelemetry/sdk-node");
+/*instrumentation.js*/
+const opentelemetry = require("@opentelemetry/sdk-node");
 const {
   getNodeAutoInstrumentations,
 } = require("@opentelemetry/auto-instrumentations-node");
-const { ConsoleSpanExporter } = require("@opentelemetry/sdk-trace-node");
 const {
-  ConsoleMetricExporter,
-  PeriodicExportingMetricReader,
-} = require("@opentelemetry/sdk-metrics");
-//Instrumentations
+  OTLPTraceExporter,
+} = require("@opentelemetry/exporter-trace-otlp-proto");
 const {
-  ExpressInstrumentation,
-} = require("opentelemetry-instrumentation-express");
-const {
-  MongoDBInstrumentation,
-} = require("@opentelemetry/instrumentation-mongodb");
-const { HttpInstrumentation } = require("@opentelemetry/instrumentation-http");
-const sdk = new NodeSDK({
-  resource: resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: "todo-service",
+  OTLPMetricExporter,
+} = require("@opentelemetry/exporter-metrics-otlp-proto");
+const { PeriodicExportingMetricReader } = require("@opentelemetry/sdk-metrics");
+
+const sdk = new opentelemetry.NodeSDK({
+  serviceName: "todo-service",
+  traceExporter: new OTLPTraceExporter({
+    // optional - default url is http://localhost:4318/v1/traces
+    // optional - collection of custom headers to be sent with each request, empty by default
+    headers: {},
   }),
-  traceExporter: new ConsoleSpanExporter(),
   metricReader: new PeriodicExportingMetricReader({
-    exporter: new ConsoleMetricExporter(),
+    exporter: new OTLPMetricExporter({
+      headers: {}, // an optional object containing custom headers to be sent with each request
+      concurrencyLimit: 1, // an optional limit on pending requests
+    }),
   }),
-  instrumentations: [
-    getNodeAutoInstrumentations(),
-    new ExpressInstrumentation(),
-    new MongoDBInstrumentation(),
-    new HttpInstrumentation(),
-  ],
+  instrumentations: [getNodeAutoInstrumentations()],
 });
 sdk.start();
